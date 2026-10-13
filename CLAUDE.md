@@ -1,6 +1,17 @@
 # cp-site
 
-Website built with Vite + React + TypeScript.
+Browser-only competitive programming site: C++ is compiled and run in the browser
+(Clang compiled to WebAssembly, run in a Web Worker). Static hosting on GitHub Pages,
+so there is no server: never add a backend or put API keys in the frontend.
+Built with Vite + React + TypeScript.
+
+## Working on it
+
+- `PLAN.md` is the source of truth: read it first, work on the current phase only,
+  tick boxes and record decisions there when something is done.
+- A change is done when `npm run build` passes and you have checked it in the browser
+  preview (for compiler work: compile and run A+B and see the right output).
+- Commit after each working step, not at the end.
 
 ## Commands
 
