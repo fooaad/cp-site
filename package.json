@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@bjorn3/browser_wasi_shim": "0.4.2",
+    "@yowasp/clang": "22.0.0-git20542-10",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
