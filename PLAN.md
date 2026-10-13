@@ -127,7 +127,10 @@ Done 2026-10-13. Notes:
 - Run compiles once and runs every test in order; the tabs show ✓ ✗ ! ⏱ per test and the
   first failing test is selected. Stop cancels the remaining tests.
 - Answers are compared line by line, ignoring trailing spaces and trailing blank lines (what
-  most judges accept). No floating-point tolerance yet.
+  most judges accept). Decimal numbers also match within a tolerance (Output → "Decimals":
+  ±1e-6 by default, ±1e-9, ±1e-4 or exact), using absolute or relative error like Codeforces:
+  |yours − expected| ≤ ε·max(1, |expected|). Whole numbers and words must match exactly. A pass
+  that needed the tolerance says so.
 - Memory is the program's final memory size minus the 256 MB stack reservation, so it counts
   globals, heap and the program itself but not stack actually used. Unknown on a time limit.
 

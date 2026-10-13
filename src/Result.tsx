@@ -1,7 +1,9 @@
 import type { Verdict } from './cpp/judge.ts'
 import { checkOutput, type Check } from './cpp/compare.ts'
 
-export function Result({ verdict, expected }: { verdict: Verdict | undefined; expected: string }) {
+type Props = { verdict: Verdict | undefined; expected: string; tolerance: number | null }
+
+export function Result({ verdict, expected, tolerance }: Props) {
   if (!verdict) return <div className="output empty">Press Run to compile and run your code on every test.</div>
 
   if (verdict.kind === 'compile-error') {
@@ -13,14 +15,14 @@ export function Result({ verdict, expected }: { verdict: Verdict | undefined; ex
     )
   }
 
-  const check: Check = verdict.kind === 'ok' ? checkOutput(expected, verdict.stdout) : { kind: 'none' }
+  const check: Check = verdict.kind === 'ok' ? checkOutput(expected, verdict.stdout, tolerance) : { kind: 'none' }
   let head: { text: string; tone: 'good' | 'bad' | 'warn' | 'plain' }
   let detail: string | undefined
   switch (verdict.kind) {
     case 'ok':
       head =
         check.kind === 'pass'
-          ? { text: 'Passed', tone: 'good' }
+          ? { text: check.approximate ? `Passed (decimals within ±${tolerance?.toExponential()})` : 'Passed', tone: 'good' }
           : check.kind === 'fail'
             ? { text: 'Wrong answer', tone: 'bad' }
             : { text: 'Finished', tone: 'plain' }

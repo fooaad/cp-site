@@ -380,3 +380,23 @@
     display: none;
   }
 }
+
+.tolerance {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+
+.tolerance select {
+  font: inherit;
+  padding: 2px 4px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}

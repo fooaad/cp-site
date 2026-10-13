@@ -26,14 +26,23 @@ int main() {
 
 const STANDARDS = ['c++17', 'c++20', 'c++23'] as const
 const OPTIMIZATIONS = ['-O2', '-O0'] as const
-type Options = { std: (typeof STANDARDS)[number]; opt: (typeof OPTIMIZATIONS)[number] }
-const DEFAULT_OPTIONS: Options = { std: 'c++20', opt: '-O2' }
+// How far decimal answers may be off (absolute or relative error); 'exact' compares text only.
+const TOLERANCES = ['1e-6', '1e-9', '1e-4', 'exact'] as const
+type Options = {
+  std: (typeof STANDARDS)[number]
+  opt: (typeof OPTIMIZATIONS)[number]
+  tolerance: (typeof TOLERANCES)[number]
+}
+const DEFAULT_OPTIONS: Options = { std: 'c++20', opt: '-O2', tolerance: '1e-6' }
 
-function parseOptions(value: unknown): Options | null {
+// Fields missing from older saved options fall back to their defaults.
+function parseOptions(value: unknown): Options {
   const v = value as Partial<Options> | null
-  const std = STANDARDS.find((s) => s === v?.std)
-  const opt = OPTIMIZATIONS.find((o) => o === v?.opt)
-  return std && opt ? { std, opt } : null
+  return {
+    std: STANDARDS.find((s) => s === v?.std) ?? DEFAULT_OPTIONS.std,
+    opt: OPTIMIZATIONS.find((o) => o === v?.opt) ?? DEFAULT_OPTIONS.opt,
+    tolerance: TOLERANCES.find((t) => t === v?.tolerance) ?? DEFAULT_OPTIONS.tolerance,
+  }
 }
 
 export default function App() {
@@ -42,6 +51,7 @@ export default function App() {
   const [tests, setTests] = useState<TestCase[]>(loadTests)
   const [selectedId, setSelectedId] = useState(() => tests[0].id)
   const [options, setOptions] = useState<Options>(() => loadJSON('options', parseOptions) ?? DEFAULT_OPTIONS)
+  const tolerance = options.tolerance === 'exact' ? null : Number(options.tolerance)
   const [results, setResults] = useState<Record<string, Verdict>>({})
   const [runningId, setRunningId] = useState<string | null>(null)
   const [status, setStatus] = useState<JudgeStatus>({ kind: 'idle' })
@@ -68,10 +78,10 @@ export default function App() {
     const map: Record<string, Outcome | 'running'> = {}
     for (const t of tests) {
       if (t.id === runningId) map[t.id] = 'running'
-      else if (results[t.id]) map[t.id] = outcomeOf(results[t.id], t.expected)
+      else if (results[t.id]) map[t.id] = outcomeOf(results[t.id], t.expected, tolerance)
     }
     return map
-  }, [tests, results, runningId])
+  }, [tests, results, runningId, tolerance])
 
   // "2 of 3 passed", counting only tests that have an expected output and ran to the end.
   const summary = useMemo(() => {
@@ -115,7 +125,7 @@ export default function App() {
       }
       // If the selected test passed but another didn't, show the first one that didn't.
       const notPassed = (t: TestCase) => {
-        const o = done[t.id] && outcomeOf(done[t.id], t.expected)
+        const o = done[t.id] && outcomeOf(done[t.id], t.expected, tolerance)
         return o !== undefined && o !== 'pass' && o !== 'ran'
       }
       const selected = snapshot.find((t) => t.id === selectedId)
@@ -216,8 +226,21 @@ export default function App() {
                 {summary.passed} of {summary.total} passed
               </span>
             )}
+            <label className="tolerance" title="How far decimal answers may be off (absolute or relative error)">
+              Decimals
+              <select
+                value={options.tolerance}
+                onChange={(e) => updateOptions({ ...options, tolerance: e.target.value as Options['tolerance'] })}
+              >
+                {TOLERANCES.map((t) => (
+                  <option key={t} value={t}>
+                    {t === 'exact' ? 'exact' : `±${t}`}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          <Result verdict={results[selected.id]} expected={selected.expected} />
+          <Result verdict={results[selected.id]} expected={selected.expected} tolerance={tolerance} />
         </section>
       </main>
     </div>
