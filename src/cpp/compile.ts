@@ -15,7 +15,15 @@ export const DEFAULT_FLAGS = ['-std=c++20', '-O2']
 // - `include/` holds our <bits/stdc++.h>
 // - 256 MB stack like Codeforces; the wasm default (64 KB) overflows on big local arrays.
 //   (This is the stack for locals in memory; call depth is limited separately by the browser.)
-const FIXED_FLAGS = ['-fno-exceptions', '-isystem', 'include', '-Wl,-z,stack-size=268435456']
+// - clock() isn't in WASI; the emulation measures wall time, which is what CP time checks want
+const FIXED_FLAGS = [
+  '-fno-exceptions',
+  '-isystem',
+  'include',
+  '-Wl,-z,stack-size=268435456',
+  '-D_WASI_EMULATED_PROCESS_CLOCKS',
+  '-lwasi-emulated-process-clocks',
+]
 
 // Compiles one C++ source file to a wasm32-wasi program with Clang running as WebAssembly.
 // The first call downloads and compiles the toolchain; later calls reuse it.

@@ -30,3 +30,6 @@ dist-ssr
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Rust build output (the built interp.wasm is copied to src/cpp/)
+interp/target

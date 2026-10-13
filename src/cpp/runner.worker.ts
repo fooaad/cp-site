@@ -1,12 +1,19 @@
 // Runs one compiled program at a time. The main thread terminates this worker on a time limit,
 // which is the only way to stop a busy wasm loop.
+//
+// If the program overflows the browser's native stack (deep recursion), it is run again in the
+// wasmi interpreter, whose call stack lives in memory ("slow mode").
 import { run } from './run.ts'
+import { runInterpreted } from './interp.ts'
+import { isStackOverflow } from './errors.ts'
 
 export type RunRequest = { wasm: Uint8Array<ArrayBuffer>; stdin: string }
 export type RunnerMessage =
   | { type: 'started' }
   | { type: 'output'; stream: 'stdout' | 'stderr'; bytes: Uint8Array<ArrayBuffer> }
-  | { type: 'finished'; exitCode: number; timeMs: number; error?: string }
+  // The fast run overflowed the stack; its output is void and a slow-mode run follows.
+  | { type: 'retrying-slow' }
+  | { type: 'finished'; exitCode: number; timeMs: number; error?: string; slow: boolean }
 
 const post = (msg: RunnerMessage, transfer: Transferable[] = []) => self.postMessage(msg, { transfer })
 
@@ -42,15 +49,28 @@ function makeSink(stream: 'stdout' | 'stderr') {
   return { write, flush }
 }
 
-self.onmessage = async (e: MessageEvent<RunRequest>) => {
+async function attempt(slow: boolean, wasm: Uint8Array<ArrayBuffer>, stdin: string) {
   const stdout = makeSink('stdout')
   const stderr = makeSink('stderr')
-  const result = await run(e.data.wasm, e.data.stdin, {
+  const options = {
     onStart: () => post({ type: 'started' }),
     onStdout: stdout.write,
     onStderr: stderr.write,
-  })
-  stdout.flush()
-  stderr.flush()
-  post({ type: 'finished', exitCode: result.exitCode, timeMs: result.timeMs, error: result.error })
+  }
+  const result = slow ? await runInterpreted(wasm, stdin, options) : await run(wasm, stdin, options)
+  return { result, flush: () => (stdout.flush(), stderr.flush()) }
+}
+
+self.onmessage = async (e: MessageEvent<RunRequest>) => {
+  const { wasm, stdin } = e.data
+  let slow = false
+  let { result, flush } = await attempt(slow, wasm, stdin)
+  if (result.error && isStackOverflow(result.error)) {
+    // Output still buffered from the fast run is dropped along with what was already sent.
+    post({ type: 'retrying-slow' })
+    slow = true
+    ;({ result, flush } = await attempt(slow, wasm, stdin))
+  }
+  flush()
+  post({ type: 'finished', exitCode: result.exitCode, timeMs: result.timeMs, error: result.error, slow })
 }

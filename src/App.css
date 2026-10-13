@@ -147,6 +147,15 @@
   color: var(--warn);
 }
 
+.slow-note {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--warn);
+  border-left: 3px solid var(--warn);
+  background: rgba(229, 192, 123, 0.08);
+}
+
 .detail {
   margin: 0 0 8px;
 }

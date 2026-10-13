@@ -1,6 +1,7 @@
 // Phase 0 checks, shared by the Node script (scripts/spike.ts) and the browser page (spike.html).
 import { compile } from '../cpp/compile.ts'
 import { run } from '../cpp/run.ts'
+import { runInterpreted } from '../cpp/interp.ts'
 
 const aPlusB = `#include <iostream>
 int main() {
@@ -91,6 +92,16 @@ async function recursionDepth(log: Log, jspi: boolean) {
   log(`DFS${jspi ? ' (JSPI)' : ''}: deepest recursion that worked: ${deepest}`)
 }
 
+async function slowMode(log: Log) {
+  const c = await compile(dfs)
+  if (!c.ok) return log(`DFS: compile error\n${c.log}`)
+  for (const n of [200_000, 1_000_000]) {
+    const r = await runInterpreted(c.wasm as Uint8Array<ArrayBuffer>, `${n}\n`)
+    const ok = r.stdout.trim() === String(n)
+    log(`DFS ${n} deep in slow mode (interpreter): ${ok ? '✅' : `❌ ${r.error ?? r.stdout}`} ${r.timeMs.toFixed(0)} ms`)
+  }
+}
+
 export async function runAll(log: Log) {
   await check(log, 'A+B (first, cold)', aPlusB, '3 4\n', '7\n')
   await check(log, 'A+B (second, warm)', aPlusB, '1000000000000 1\n', '1000000000001\n')
@@ -101,4 +112,5 @@ export async function runAll(log: Log) {
   await recursionDepth(log, false)
   if ('promising' in WebAssembly) await recursionDepth(log, true)
   else log('JSPI: not available in this engine')
+  await slowMode(log)
 }

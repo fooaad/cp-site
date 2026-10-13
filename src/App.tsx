@@ -120,7 +120,7 @@ function statusText(status: JudgeStatus, ready: boolean): string {
     case 'compiling':
       return 'Compiling…'
     case 'running':
-      return 'Running…'
+      return status.slow ? 'Running in slow mode (deep recursion)…' : 'Running…'
     case 'idle':
       return ready ? 'Ready' : 'Loading compiler…'
   }
@@ -149,7 +149,7 @@ function Output({ verdict }: { verdict: Verdict | null }) {
       detail = verdict.message
       break
     case 'time-limit':
-      head = { text: `Time limit exceeded (${TIME_LIMIT_MS / 1000} s)`, tone: 'warn' }
+      head = { text: `Time limit exceeded (${verdict.timeLimitMs / 1000} s${verdict.slow ? ' in slow mode' : ''})`, tone: 'warn' }
       detail = 'Stopped the program. Output so far is shown below.'
       break
     case 'stopped':
@@ -160,6 +160,12 @@ function Output({ verdict }: { verdict: Verdict | null }) {
   return (
     <div className="output">
       <div className={`verdict ${head.tone}`}>{head.text}</div>
+      {verdict.slow && (
+        <p className="slow-note">
+          Slow mode: the recursion went deeper than the browser allows, so the program was run again in an
+          interpreter. It is about 25× slower, so the time is not comparable to a judge.
+        </p>
+      )}
       {detail && <p className="detail">{detail}</p>}
       <StreamText text={verdict.stdout} empty="(no output)" />
       {verdict.stderr && (

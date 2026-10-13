@@ -3,18 +3,25 @@ import type { CompileRequest, CompilerMessage } from './compiler.worker.ts'
 import type { RunRequest, RunnerMessage } from './runner.worker.ts'
 import { describeRuntimeError } from './errors.ts'
 
+// `slow`: the program recursed too deep for the browser and was re-run in the interpreter.
+type Ran = { stdout: string; stderr: string; timeMs: number; log: string; slow: boolean }
+
 export type Verdict =
   | { kind: 'compile-error'; log: string }
-  | { kind: 'ok'; stdout: string; stderr: string; timeMs: number; log: string }
-  | { kind: 'runtime-error'; message: string; stdout: string; stderr: string; timeMs: number; log: string }
-  | { kind: 'time-limit'; stdout: string; stderr: string; timeMs: number; log: string }
-  | { kind: 'stopped'; stdout: string; stderr: string }
+  | ({ kind: 'ok' } & Ran)
+  | ({ kind: 'runtime-error'; message: string } & Ran)
+  | ({ kind: 'time-limit'; timeLimitMs: number } & Ran)
+  | { kind: 'stopped'; stdout: string; stderr: string; slow: boolean }
 
 export type JudgeStatus =
   | { kind: 'idle' }
   | { kind: 'downloading'; done: number; total: number }
   | { kind: 'compiling' }
-  | { kind: 'running' }
+  | { kind: 'running'; slow: boolean }
+
+// The interpreter is ~25x slower, so slow mode gets a longer limit; its times are not
+// comparable to a judge's anyway.
+export const SLOW_MODE_FACTOR = 15
 
 // Keep at most this much output; a runaway print loop would otherwise eat all memory.
 const OUTPUT_LIMIT = 4 * 1024 * 1024
@@ -58,7 +65,7 @@ export class Judge {
         if (!msg.ok) return { kind: 'compile-error', log: msg.log }
         this.lastBuild = { key, wasm: msg.wasm, log: msg.log }
       }
-      this.onStatus({ kind: 'running' })
+      this.onStatus({ kind: 'running', slow: false })
       return await this.execute(this.lastBuild.wasm, this.lastBuild.log, stdin, timeLimitMs)
     } finally {
       this.onStatus({ kind: 'idle' })
@@ -85,9 +92,10 @@ export class Judge {
 
   private execute(wasm: Uint8Array<ArrayBuffer>, log: string, stdin: string, timeLimitMs: number): Promise<Verdict> {
     const runner = (this.runner ??= new Worker(new URL('./runner.worker.ts', import.meta.url), { type: 'module' }))
-    const decoders = { stdout: new TextDecoder(), stderr: new TextDecoder() }
+    let decoders = { stdout: new TextDecoder(), stderr: new TextDecoder() }
     const text = { stdout: '', stderr: '' }
     let startedAt = 0
+    let slow = false
     let timer: ReturnType<typeof setTimeout> | undefined
 
     return new Promise<Verdict>((resolve) => {
@@ -103,28 +111,36 @@ export class Judge {
         runner.onmessage = null
         resolve(verdict)
       }
-      this.stopCurrent = () => kill({ kind: 'stopped', ...text })
+      this.stopCurrent = () => kill({ kind: 'stopped', ...text, slow })
 
       runner.onmessage = (e: MessageEvent<RunnerMessage>) => {
         const msg = e.data
         if (msg.type === 'started') {
           startedAt = performance.now()
+          const limit = slow ? timeLimitMs * SLOW_MODE_FACTOR : timeLimitMs
           timer = setTimeout(
-            () => kill({ kind: 'time-limit', ...text, timeMs: performance.now() - startedAt, log }),
-            timeLimitMs,
+            () => kill({ kind: 'time-limit', timeLimitMs: limit, ...text, timeMs: performance.now() - startedAt, log, slow }),
+            limit,
           )
+        } else if (msg.type === 'retrying-slow') {
+          clearTimeout(timer)
+          slow = true
+          text.stdout = text.stderr = ''
+          decoders = { stdout: new TextDecoder(), stderr: new TextDecoder() }
+          this.onStatus({ kind: 'running', slow: true })
         } else if (msg.type === 'output') {
           if (text[msg.stream].length < OUTPUT_LIMIT) {
             text[msg.stream] += decoders[msg.stream].decode(msg.bytes, { stream: true })
             if (text[msg.stream].length >= OUTPUT_LIMIT) text[msg.stream] += '\n… output truncated (over 4 MB)'
           }
         } else if (msg.error) {
-          finish({ kind: 'runtime-error', message: describeRuntimeError(msg.error), ...text, timeMs: msg.timeMs, log })
+          const message = describeRuntimeError(msg.error, slow)
+          finish({ kind: 'runtime-error', message, ...text, timeMs: msg.timeMs, log, slow })
         } else if (msg.exitCode !== 0) {
           const message = `The program exited with code ${msg.exitCode}.`
-          finish({ kind: 'runtime-error', message, ...text, timeMs: msg.timeMs, log })
+          finish({ kind: 'runtime-error', message, ...text, timeMs: msg.timeMs, log, slow })
         } else {
-          finish({ kind: 'ok', ...text, timeMs: msg.timeMs, log })
+          finish({ kind: 'ok', ...text, timeMs: msg.timeMs, log, slow })
         }
       }
       runner.postMessage({ wasm, stdin } satisfies RunRequest)

@@ -88,6 +88,27 @@ and 100 KB rendered. Re-running unchanged code skips the compile.
 - stdout is reported to wasi-libc as a file, not a terminal, so it's block-buffered (one
   terminal-style write per line made 1e6 lines take 0.86 s instead of 0.49 s).
 
+## Phase 1b: Deep recursion (slow mode)
+
+- [x] Spike: run programs in an interpreter whose call stack lives in memory
+- [x] Automatic fallback: on "stack overflow" the runner re-runs the program in slow mode,
+      with a 15× longer time limit and a "Slow mode" note in the output
+
+How: `interp/` is a small Rust crate around the wasmi 2.0 interpreter with the ~15 WASI calls
+compiled programs use, built to `src/cpp/interp.wasm` (1.8 MB, committed) by `npm run build:interp`.
+`src/cpp/interp.ts` loads it; `runner.worker.ts` retries there when the fast run overflows.
+
+| | Fast (browser engine) | Slow mode (wasmi) |
+|---|---|---|
+| DFS 2e5 deep | ❌ stack overflow | ✅ 0.75–1.05 s |
+| DFS 1e6 deep | ❌ | ✅ ~4 s |
+| 1e8 simple operations | 0.10 s | 2.5 s (~25× slower) |
+| Startup | – | ~60 ms (lazy translation) |
+| Infinite recursion | – | stops in ~0.6 s when the 256 MB stack runs out |
+
+- Tried Wasm tail calls (`+tail-call`) for wasmi's faster dispatch: the interpreter then overflowed
+  its own stack (stable Rust can't guarantee every handler call becomes a tail call). Reverted.
+
 ## Phase 2: CP comfort
 
 - [x] Default template + `bits/stdc++.h` stand-in
@@ -126,9 +147,10 @@ Done when: a typical compile takes about 1 s after the first visit.
 - Compiler: `@yowasp/clang` (LLVM 22, updated Aug 2026, ships libc++ for wasm32-wasip1, plain npm
   package, no special headers or SharedArrayBuffer needed). Wasmer's SDK was ruled out: it needs
   cross-origin isolation headers that GitHub Pages can't set, and downloads packages from Wasmer's registry.
-- Fixed flags: `-fno-exceptions -isystem include -Wl,-z,stack-size=268435456`; user flags default `-std=c++20 -O2`.
+- Fixed flags: `-fno-exceptions -isystem include -Wl,-z,stack-size=268435456` plus WASI clock
+  emulation so `clock()` links; user flags default `-std=c++20 -O2`.
+- Deep recursion: automatic slow mode in the wasmi interpreter (Phase 1b), not iterative-only.
 
 ## Open questions
 
-- Deep recursion: how to support DFS depth 2e5–1e6 in the browser? (blocks "good for CP")
 - Slow `cin`/`cout`: rebuild libc++ at -O2? report upstream?
