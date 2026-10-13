@@ -13,7 +13,7 @@ export type RunnerMessage =
   | { type: 'output'; stream: 'stdout' | 'stderr'; bytes: Uint8Array<ArrayBuffer> }
   // The fast run overflowed the stack; its output is void and a slow-mode run follows.
   | { type: 'retrying-slow' }
-  | { type: 'finished'; exitCode: number; timeMs: number; error?: string; slow: boolean }
+  | { type: 'finished'; exitCode: number; timeMs: number; memoryBytes: number; error?: string; slow: boolean }
 
 const post = (msg: RunnerMessage, transfer: Transferable[] = []) => self.postMessage(msg, { transfer })
 
@@ -72,5 +72,6 @@ self.onmessage = async (e: MessageEvent<RunRequest>) => {
     ;({ result, flush } = await attempt(slow, wasm, stdin))
   }
   flush()
-  post({ type: 'finished', exitCode: result.exitCode, timeMs: result.timeMs, error: result.error, slow })
+  const { exitCode, timeMs, memoryBytes, error } = result
+  post({ type: 'finished', exitCode, timeMs, memoryBytes, error, slow })
 }

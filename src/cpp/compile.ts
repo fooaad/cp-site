@@ -11,6 +11,10 @@ export type DownloadProgress = { done: number; total: number }
 // Flags the user may change (standard, optimization level).
 export const DEFAULT_FLAGS = ['-std=c++20', '-O2']
 
+// Reserved for the stack in every program's memory (like Codeforces' 256 MB stack). Memory use
+// is reported without it, since the reservation is the same whether the program uses it or not.
+export const STACK_BYTES = 256 * 1024 * 1024
+
 // Flags every compile needs:
 // - the bundled libc++ has no exception support, so `throw` can't link; library errors abort instead
 // - `include/` holds our <bits/stdc++.h>
@@ -22,7 +26,7 @@ const FIXED_FLAGS = [
   '-fno-exceptions',
   '-isystem',
   'include',
-  '-Wl,-z,stack-size=268435456',
+  `-Wl,-z,stack-size=${STACK_BYTES}`,
   '-D_WASI_EMULATED_PROCESS_CLOCKS',
   '-lwasi-emulated-process-clocks',
   '-nostdlib++',

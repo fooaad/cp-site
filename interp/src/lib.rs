@@ -6,7 +6,7 @@
 //! the `host.write` import as it is written. Only the WASI calls that compiled C++ programs use
 //! are implemented.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use wasmi::{Caller, CompilationMode, Config, Engine, Error, Extern, Linker, Memory, Module, Store};
 
 #[link(wasm_import_module = "host")]
@@ -39,6 +39,7 @@ struct Wasi {
 
 thread_local! {
     static ERROR: RefCell<String> = const { RefCell::new(String::new()) };
+    static MEMORY_PAGES: Cell<u32> = const { Cell::new(0) };
 }
 
 #[unsafe(no_mangle)]
@@ -58,6 +59,12 @@ pub extern "C" fn error_ptr() -> *const u8 {
 #[unsafe(no_mangle)]
 pub extern "C" fn error_len() -> usize {
     ERROR.with(|e| e.borrow().len())
+}
+
+/// Size of the program's memory at the end of the last `run`, in 64 KiB pages.
+#[unsafe(no_mangle)]
+pub extern "C" fn memory_pages() -> u32 {
+    MEMORY_PAGES.with(Cell::get)
 }
 
 /// Runs the program. Returns its exit code, or -1 if it trapped or failed to load
@@ -94,7 +101,11 @@ fn execute(wasm: &[u8], stdin: Vec<u8>) -> Result<i32, String> {
     let start = instance
         .get_typed_func::<(), ()>(&store, "_start")
         .map_err(|e| format!("program has no _start: {e}"))?;
-    match start.call(&mut store, ()) {
+    let result = start.call(&mut store, ());
+    if let Some(memory) = instance.get_memory(&store, "memory") {
+        MEMORY_PAGES.with(|p| p.set(memory.size(&store) as u32));
+    }
+    match result {
         Ok(()) => Ok(0),
         Err(e) => match e.i32_exit_status() {
             Some(code) => Ok(code),

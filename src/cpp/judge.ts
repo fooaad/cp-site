@@ -2,9 +2,11 @@
 import type { CompileRequest, CompilerMessage } from './compiler.worker.ts'
 import type { RunRequest, RunnerMessage } from './runner.worker.ts'
 import { describeRuntimeError } from './errors.ts'
+import { STACK_BYTES } from './compile.ts'
 
 // `slow`: the program recursed too deep for the browser and was re-run in the interpreter.
-type Ran = { stdout: string; stderr: string; timeMs: number; log: string; slow: boolean }
+// `memoryBytes`: peak memory without the stack reservation; unknown if the run was killed.
+type Ran = { stdout: string; stderr: string; timeMs: number; memoryBytes?: number; log: string; slow: boolean }
 
 export type Verdict =
   | { kind: 'compile-error'; log: string }
@@ -133,14 +135,16 @@ export class Judge {
             text[msg.stream] += decoders[msg.stream].decode(msg.bytes, { stream: true })
             if (text[msg.stream].length >= OUTPUT_LIMIT) text[msg.stream] += '\n… output truncated (over 4 MB)'
           }
-        } else if (msg.error) {
-          const message = describeRuntimeError(msg.error, slow)
-          finish({ kind: 'runtime-error', message, ...text, timeMs: msg.timeMs, log, slow })
-        } else if (msg.exitCode !== 0) {
-          const message = `The program exited with code ${msg.exitCode}.`
-          finish({ kind: 'runtime-error', message, ...text, timeMs: msg.timeMs, log, slow })
-        } else {
-          finish({ kind: 'ok', ...text, timeMs: msg.timeMs, log, slow })
+        } else if (msg.type === 'finished') {
+          const memoryBytes = Math.max(0, msg.memoryBytes - STACK_BYTES)
+          const ran = { ...text, timeMs: msg.timeMs, memoryBytes, log, slow }
+          if (msg.error) {
+            finish({ kind: 'runtime-error', message: describeRuntimeError(msg.error, slow), ...ran })
+          } else if (msg.exitCode !== 0) {
+            finish({ kind: 'runtime-error', message: `The program exited with code ${msg.exitCode}.`, ...ran })
+          } else {
+            finish({ kind: 'ok', ...ran })
+          }
         }
       }
       runner.postMessage({ wasm, stdin } satisfies RunRequest)

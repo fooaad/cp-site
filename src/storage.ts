@@ -17,3 +17,18 @@ export function save(key: string, value: string) {
     // Not saved; the page keeps working.
   }
 }
+
+// `parse` checks the shape of what was stored and returns null if it doesn't fit.
+export function loadJSON<T>(key: string, parse: (value: unknown) => T | null): T | null {
+  const raw = load(key)
+  if (raw === null) return null
+  try {
+    return parse(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+export function saveJSON(key: string, value: unknown) {
+  save(key, JSON.stringify(value))
+}

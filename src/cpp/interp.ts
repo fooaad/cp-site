@@ -10,6 +10,7 @@ type InterpExports = {
   run(wasmPtr: number, wasmLen: number, stdinPtr: number, stdinLen: number): number
   error_ptr(): number
   error_len(): number
+  memory_pages(): number
 }
 
 let interpreter: Promise<WebAssembly.Module> | null = null
@@ -75,10 +76,11 @@ export async function runInterpreted(
     error = e instanceof Error ? e.message : String(e)
   }
   const timeMs = performance.now() - start
+  const memoryBytes = exports.memory_pages() * 65536
 
   const decode = (chunks: Uint8Array[]) => {
     const decoder = new TextDecoder()
     return chunks.map((c) => decoder.decode(c, { stream: true })).join('') + decoder.decode()
   }
-  return { exitCode, stdout: decode(out), stderr: decode(err), timeMs, error }
+  return { exitCode, stdout: decode(out), stderr: decode(err), timeMs, memoryBytes, error }
 }

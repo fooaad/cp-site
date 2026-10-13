@@ -16,6 +16,8 @@ export type RunResult = {
   stdout: string
   stderr: string
   timeMs: number
+  // Size of the program's linear memory at the end (it only grows, so this is the peak).
+  memoryBytes: number
   // Set when the program crashed (trap, abort, stack overflow) instead of exiting.
   error?: string
 }
@@ -65,8 +67,9 @@ export async function run(wasm: Uint8Array<ArrayBuffer>, stdin: string, options:
     }
   }
   const timeMs = performance.now() - start
+  const memoryBytes = (instance.exports.memory as WebAssembly.Memory).buffer.byteLength
 
-  return { exitCode, stdout: decode(out), stderr: decode(err), timeMs, error }
+  return { exitCode, stdout: decode(out), stderr: decode(err), timeMs, memoryBytes, error }
 }
 
 function decode(chunks: Uint8Array[]): string {

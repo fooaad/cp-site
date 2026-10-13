@@ -116,12 +116,20 @@ compiled programs use, built to `src/cpp/interp.wasm` (1.8 MB, committed) by `np
 ## Phase 2: CP comfort
 
 - [x] Default template + `bits/stdc++.h` stand-in
-- [ ] Multiple test cases with expected output, pass/fail, diff
+- [x] Multiple test cases with expected output, pass/fail, diff
 - [x] Ctrl+Enter / Cmd+Enter to run
-- [ ] `-O0` / `-O2` toggle
-- [ ] Time and memory per run
+- [x] `-O0` / `-O2` toggle, plus C++17 / C++20 / C++23
+- [x] Time and memory per run
 - [x] Autosave code and input in the browser
-- [ ] Autosave test cases
+- [x] Autosave test cases and compiler options
+
+Done 2026-10-13. Notes:
+- Run compiles once and runs every test in order; the tabs show ✓ ✗ ! ⏱ per test and the
+  first failing test is selected. Stop cancels the remaining tests.
+- Answers are compared line by line, ignoring trailing spaces and trailing blank lines (what
+  most judges accept). No floating-point tolerance yet.
+- Memory is the program's final memory size minus the 256 MB stack reservation, so it counts
+  globals, heap and the program itself but not stack actually used. Unknown on a time limit.
 
 ## Phase 3: Speed
 
