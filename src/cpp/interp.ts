@@ -2,6 +2,7 @@
 // Much slower than the browser's own engine, but the call stack lives in memory, so deep
 // recursion works. Used as a fallback when a normal run overflows the stack.
 import type { RunOptions, RunResult } from './run.ts'
+import { fetchBytes } from './assets.ts'
 
 type InterpExports = {
   memory: WebAssembly.Memory
@@ -15,14 +16,7 @@ let interpreter: Promise<WebAssembly.Module> | null = null
 
 function loadInterpreter(): Promise<WebAssembly.Module> {
   const url = new URL('./interp.wasm', import.meta.url)
-  if (url.protocol === 'file:') {
-    // Node (scripts/spike.ts): fetch() can't read files. The module name is a variable so the
-    // browser build doesn't try to bundle it.
-    const fsModule = 'node:fs/promises'
-    return import(/* @vite-ignore */ fsModule)
-      .then((fs: { readFile(url: URL): Promise<Uint8Array<ArrayBuffer>> }) => fs.readFile(url))
-      .then((bytes) => WebAssembly.compile(bytes))
-  }
+  if (url.protocol === 'file:') return fetchBytes(url).then((bytes) => WebAssembly.compile(bytes))
   return WebAssembly.compileStreaming(fetch(url))
 }
 

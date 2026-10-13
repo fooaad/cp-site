@@ -71,20 +71,24 @@ and 100 KB rendered. Re-running unchanged code skips the compile.
 
 ### Findings
 
-- **Slow iostreams (open):** YoWASP's `libc++.a` is built without optimization (their `build.sh`
-  passes no `CMAKE_BUILD_TYPE` for the runtimes). Header code (`vector`, `sort`, `map`) is
-  compiled with the user's `-O2` and is fast, but code inside the library is not:
+- **Slow iostreams (fixed 2026-10-13):** YoWASP's `libc++.a` is built without optimization (their
+  `build.sh` passes no `CMAKE_BUILD_TYPE` for the runtimes). Header code (`vector`, `sort`, `map`)
+  was always fast; code inside the library was not. `libcxx/build.sh` rebuilds libc++/libc++abi
+  from the same LLVM commit (Codeberg YoWASP/llvm-project 9560ae0f) with YoWASP's CMake options
+  plus `-O2`, using wasi-sdk 29 like they do. All 1,679 installed headers, including
+  `__config_site`, are byte-identical to the bundled ones. The result (`src/cpp/libcxx/`,
+  1.7 MB, committed) is linked with `-nostdlib++` instead of the bundled copy.
 
-  | 1e6 numbers | browser (Node) | native libc++ |
-  |---|---|---|
-  | `cin >> x` | 2.7 s | 0.94 s |
-  | `scanf` | 27 ms | |
-  | `cout << i << "\n"` | 0.47 s | 0.08 s |
-  | `printf` | 46 ms | |
-  | `to_string` | 0.27 s | 0.01 s |
+  | 1e6 numbers | bundled libc++ | our build | native macOS libc++ |
+  |---|---|---|---|
+  | `cin >> x` | 2.7 s | 0.34 s | 0.94 s |
+  | `cout << i << "\n"` | 0.47 s | 0.045 s | 0.08 s |
+  | `to_string` | 0.27 s | 0.009 s | 0.01 s |
+  | `scanf` / `printf` (libc, unchanged) | 27 / 46 ms | | |
 
-  Fix options: rebuild libc++/libc++abi at -O2 ourselves and link it ahead of the bundled one;
-  report upstream to YoWASP. Until then `scanf`/`printf` are fast.
+  In the browser, `cin` of 2e5 numbers: 70 ms (`scanf` 7 ms). Programs also got smaller
+  (A+B 577 KB → 300 KB). Rebuild with `libcxx/build.sh` (~20 s; downloads ~110 MB wasi-sdk and a
+  sparse LLVM checkout into the git-ignored `libcxx/.work/`).
 - stdout is reported to wasi-libc as a file, not a terminal, so it's block-buffered (one
   terminal-style write per line made 1e6 lines take 0.86 s instead of 0.49 s).
 
@@ -153,4 +157,7 @@ Done when: a typical compile takes about 1 s after the first visit.
 
 ## Open questions
 
-- Slow `cin`/`cout`: rebuild libc++ at -O2? report upstream?
+- Report the unoptimized runtimes upstream to YoWASP/clang? (one-line fix: add
+  `-DCMAKE_BUILD_TYPE=...` to the libcxx and compiler-rt CMake calls in their build.sh)
+- `cin` is still ~10x slower than `scanf` (libc++ design, also native). Add a fast-input path if
+  it ever matters; 2e5 numbers take 70 ms.

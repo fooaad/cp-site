@@ -33,3 +33,4 @@ dist-ssr
 
 # Rust build output (the built interp.wasm is copied to src/cpp/)
 interp/target
+libcxx/.work
