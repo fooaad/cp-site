@@ -52,7 +52,7 @@ Done when: a typical compile takes about 1 s after the first visit.
 
 ## Phase 4: Online
 
-- [ ] GitHub repo (ask first)
+- [x] GitHub repo: github.com/fooaad/cp-site (private; must be public for free GitHub Pages)
 - [ ] GitHub Actions workflow → GitHub Pages on every push; set Vite `base`
 - [ ] Check file size limits for the compiler files; fall back to a CDN if needed
 
