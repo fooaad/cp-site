@@ -37,7 +37,8 @@ if [ ! -d "$WASI_SDK" ]; then
   curl -sSL https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VER}/${WASI_SDK}.tar.gz | tar xzf -
 fi
 
-WASI_CFLAGS="--sysroot ${WASI_SDK_PATH}/share/wasi-sysroot -mcpu=lime1"
+# -ffile-prefix-map keeps this machine's paths out of the binaries (they end up in assert messages).
+WASI_CFLAGS="--sysroot ${WASI_SDK_PATH}/share/wasi-sysroot -mcpu=lime1 -ffile-prefix-map=${WORK}=/build"
 cat >Toolchain-WASI.cmake <<END
 set(CMAKE_SYSTEM_NAME WASI)
 set(CMAKE_SYSTEM_VERSION 1)
