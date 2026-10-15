@@ -144,9 +144,12 @@ Done when: a typical compile takes about 1 s after the first visit.
 
 ## Phase 4: Online
 
-- [x] GitHub repo: github.com/fooaad/cp-site (private; must be public for free GitHub Pages)
-- [ ] GitHub Actions workflow → GitHub Pages on every push; set Vite `base`
-- [ ] Check file size limits for the compiler files; fall back to a CDN if needed
+- [x] GitHub repo: github.com/fooaad/cp-site (public since 2026-10-14)
+- [x] GitHub Actions workflow → GitHub Pages on every push; Vite `base` is `/cp-site/`
+- [x] Check file size limits for the compiler files: largest is 75 MB, under the 100 MB limit
+
+Live at **https://fooaad.github.io/cp-site/** (2026-10-14). GitHub Pages gzips everything,
+`.wasm` included: a first visit downloads ~28.5 MB (compiler 23 MB, headers 4.4 MB, the rest ~1 MB).
 
 ## Later
 
