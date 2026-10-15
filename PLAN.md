@@ -136,11 +136,25 @@ Done 2026-10-13. Notes:
 
 ## Phase 3: Speed
 
-- [ ] Precompiled header for `bits/stdc++.h`
+- [x] Precompiled header for `bits/stdc++.h`
 - [x] Keep the compiler loaded in the worker between runs
-- [ ] Cache compiler files after first visit (works offline)
+- [x] Cache compiler files after first visit (works offline)
 
-Done when: a typical compile takes about 1 s after the first visit.
+Done when: a typical compile takes about 1 s after the first visit. ✅ (2026-10-15): ~0.3 s.
+
+- **Precompiled header:** building one takes 10-15 s and 20-31 MB (even `<vector>` alone is 13 MB,
+  so trimming headers wouldn't help much), too slow for the browser. `npm run build:pch` builds
+  all six standard × optimization combinations at deploy time (~1 min, cached in Actions) into
+  `pch/`, named by a hash of compiler version + flags + header text. The compiler worker fetches
+  the one for the current options in the background (~17 MB gzipped) and compiles without it
+  until it arrives. It's only used when `#include <bits/stdc++.h>` is the first
+  `#include`/`#define` (so macros defined before it still apply), and a failing PCH falls back to
+  a normal compile. Compile + run of a typical solution: ~1.4 s → ~0.3 s.
+- **Offline:** `sw/sw.js`, with the build's file list prepended by a Vite plugin. Hashed files
+  (assets/, pch/) are cache-first, the page network-first; each deploy deletes files that are no
+  longer part of the site. Nothing is precached (that would download the compiler twice on a
+  first visit), so offline works once the site has been used. Tested by stopping the server:
+  ready in 0.3 s, compile + run in 0.6 s.
 
 ## Phase 4: Online
 

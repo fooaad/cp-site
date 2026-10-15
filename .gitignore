@@ -34,3 +34,6 @@ dist-ssr
 # Rust build output (the built interp.wasm is copied to src/cpp/)
 interp/target
 libcxx/.work
+
+# Precompiled headers, built by `npm run build:pch` (the deploy workflow does it)
+public/pch

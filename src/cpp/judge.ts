@@ -1,5 +1,5 @@
 // Main-thread side: compiles in a long-lived worker, runs in a separate worker that can be killed.
-import type { CompileRequest, CompilerMessage } from './compiler.worker.ts'
+import type { CompilerRequest, CompilerMessage } from './compiler.worker.ts'
 import type { RunRequest, RunnerMessage } from './runner.worker.ts'
 import { describeRuntimeError } from './errors.ts'
 import { STACK_BYTES } from './compile.ts'
@@ -50,10 +50,16 @@ export class Judge {
     }
   }
 
-  // Loads the toolchain in the background so the first Run is fast.
-  async warmUp() {
+  // Loads the toolchain in the background so the first Run is fast, then fetches the
+  // precompiled header for the flags the user has selected.
+  async warmUp(flags: string[]) {
     await this.compile('int main() {}', [])
+    this.prefetch(flags)
     this.onStatus({ kind: 'idle' })
+  }
+
+  prefetch(flags: string[]) {
+    this.compiler.postMessage({ type: 'prefetch', flags } satisfies CompilerRequest)
   }
 
   async run(source: string, stdin: string, flags: string[], timeLimitMs: number): Promise<Verdict> {
@@ -88,7 +94,7 @@ export class Judge {
     const id = this.nextId++
     return new Promise((resolve) => {
       this.pending.set(id, resolve)
-      this.compiler.postMessage({ id, source, flags } satisfies CompileRequest)
+      this.compiler.postMessage({ type: 'compile', id, source, flags } satisfies CompilerRequest)
     })
   }
 

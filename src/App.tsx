@@ -60,12 +60,20 @@ export default function App() {
   const judge = useRef<Judge | null>(null)
   const stopRequested = useRef(false)
 
+  const flags = useMemo(() => [`-std=${options.std}`, options.opt], [options.std, options.opt])
+  const initialFlags = useRef(flags)
+
   useEffect(() => {
     const j = new Judge(setStatus)
     judge.current = j
-    j.warmUp().then(() => setReady(true))
+    j.warmUp(initialFlags.current).then(() => setReady(true))
     return () => j.dispose()
   }, [])
+
+  // Fetch the precompiled header for newly chosen options before the next Run.
+  useEffect(() => {
+    if (ready) judge.current?.prefetch(flags)
+  }, [ready, flags])
 
   // Compiler messages are the same for every test; take them from any result.
   const compileLog = useMemo(() => {
@@ -107,7 +115,6 @@ export default function App() {
     setBusy(true)
     stopRequested.current = false
     setResults({})
-    const flags = [`-std=${options.std}`, options.opt]
     const snapshot = tests
     const done: Record<string, Verdict> = {}
     try {

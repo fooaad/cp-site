@@ -13,7 +13,9 @@ running as WebAssembly in your own browser tab, so there is no server and nothin
   interpreter that keeps its call stack in memory ("slow mode", about 25× slower)
 - Code, tests and settings are saved in your browser
 
-The first visit downloads the compiler (about 25 MB compressed); after that it's cached.
+The first visit downloads the compiler (about 28 MB compressed), then a precompiled
+`<bits/stdc++.h>` in the background (about 17 MB) that makes compiles ~5× faster (~0.3 s).
+After that everything is cached and the site works offline.
 
 **Limits:** no C++ exceptions (`throw` won't compile), no `<csetjmp>`/`<csignal>`, Clang and
 libc++ rather than GCC (so no `__gnu_pbds`).
@@ -27,6 +29,8 @@ libc++ rather than GCC (so no `__gnu_pbds`).
 | `src/cpp/compiler.worker.ts` | keeps Clang loaded in a Web Worker between runs |
 | `src/cpp/runner.worker.ts` | runs one program at a time with stdin/stdout ([browser_wasi_shim](https://github.com/bjorn3/browser_wasi_shim)); killed on a time limit |
 | `interp/` → `src/cpp/interp.wasm` | the [wasmi](https://github.com/wasmi-labs/wasmi) interpreter with a small WASI layer, for slow mode |
+| `scripts/build-pch.ts` → `pch/` | precompiled `<bits/stdc++.h>` for each standard/optimization, built at deploy time |
+| `sw/sw.js` | service worker that caches the site for offline use |
 
 [PLAN.md](PLAN.md) has the build plan, measurements and decisions.
 
@@ -36,6 +40,7 @@ libc++ rather than GCC (so no `__gnu_pbds`).
 npm install
 npm run dev          # http://localhost:5173 (and /spike.html for the Phase 0 checks)
 npm run build        # production build into dist/
+npm run build:pch    # precompiled headers into public/pch/ (~1 min; deploy does this)
 npm run preview      # serve dist/ at http://localhost:4173/cp-site/
 node scripts/spike.ts  # compile/run checks in Node
 ```

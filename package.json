@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "build:interp": "RUSTFLAGS=\"--remap-path-prefix=$HOME=~\" cargo build --release --target wasm32-unknown-unknown --manifest-path interp/Cargo.toml && cp interp/target/wasm32-unknown-unknown/release/interp.wasm src/cpp/interp.wasm"
+    "build:interp": "RUSTFLAGS=\"--remap-path-prefix=$HOME=~\" cargo build --release --target wasm32-unknown-unknown --manifest-path interp/Cargo.toml && cp interp/target/wasm32-unknown-unknown/release/interp.wasm src/cpp/interp.wasm",
+    "build:pch": "node scripts/build-pch.ts"
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "0.4.2",
