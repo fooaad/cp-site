@@ -7,6 +7,8 @@ import { Judge, type JudgeStatus, type Verdict } from './cpp/judge.ts'
 import { parseDiagnostics } from './cpp/diagnostics.ts'
 import { load, save, loadJSON, saveJSON } from './storage.ts'
 import { loadTests, newTest, saveTests, type TestCase } from './tests.ts'
+import { DEFAULT_OPTIONS, parseOptions, type Options } from './options.ts'
+import { Settings } from './Settings.tsx'
 import './App.css'
 
 const TIME_LIMIT_MS = 2000
@@ -23,27 +25,6 @@ int main() {
     cout << a + b << "\\n";
 }
 `
-
-const STANDARDS = ['c++17', 'c++20', 'c++23'] as const
-const OPTIMIZATIONS = ['-O2', '-O0'] as const
-// How far decimal answers may be off (absolute or relative error); 'exact' compares text only.
-const TOLERANCES = ['1e-6', '1e-9', '1e-4', 'exact'] as const
-type Options = {
-  std: (typeof STANDARDS)[number]
-  opt: (typeof OPTIMIZATIONS)[number]
-  tolerance: (typeof TOLERANCES)[number]
-}
-const DEFAULT_OPTIONS: Options = { std: 'c++20', opt: '-O2', tolerance: '1e-6' }
-
-// Fields missing from older saved options fall back to their defaults.
-function parseOptions(value: unknown): Options {
-  const v = value as Partial<Options> | null
-  return {
-    std: STANDARDS.find((s) => s === v?.std) ?? DEFAULT_OPTIONS.std,
-    opt: OPTIMIZATIONS.find((o) => o === v?.opt) ?? DEFAULT_OPTIONS.opt,
-    tolerance: TOLERANCES.find((t) => t === v?.tolerance) ?? DEFAULT_OPTIONS.tolerance,
-  }
-}
 
 export default function App() {
   const [initialCode] = useState(() => load('code') ?? TEMPLATE)
@@ -156,29 +137,7 @@ export default function App() {
     <div className="app">
       <header className="toolbar">
         <h1>cp-site</h1>
-        <select
-          aria-label="C++ standard"
-          value={options.std}
-          onChange={(e) => updateOptions({ ...options, std: e.target.value as Options['std'] })}
-        >
-          {STANDARDS.map((s) => (
-            <option key={s} value={s}>
-              {s.replace('c++', 'C++')}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Optimization"
-          title="-O2 runs faster; -O0 compiles a little faster"
-          value={options.opt}
-          onChange={(e) => updateOptions({ ...options, opt: e.target.value as Options['opt'] })}
-        >
-          {OPTIMIZATIONS.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
+        <Settings options={options} onChange={updateOptions} />
         <span className="status" aria-live="polite">
           {statusText(status, ready, runningIndex, tests.length)}
         </span>
@@ -233,19 +192,6 @@ export default function App() {
                 {summary.passed} of {summary.total} passed
               </span>
             )}
-            <label className="tolerance" title="How far decimal answers may be off (absolute or relative error)">
-              Decimals
-              <select
-                value={options.tolerance}
-                onChange={(e) => updateOptions({ ...options, tolerance: e.target.value as Options['tolerance'] })}
-              >
-                {TOLERANCES.map((t) => (
-                  <option key={t} value={t}>
-                    {t === 'exact' ? 'exact' : `±${t}`}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
           <Result verdict={results[selected.id]} expected={selected.expected} tolerance={tolerance} />
         </section>

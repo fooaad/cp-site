@@ -28,6 +28,11 @@ export function Result({ verdict, expected, tolerance }: Props) {
             : { text: 'Finished', tone: 'plain' }
       if (check.kind === 'fail') {
         detail = `Line ${check.firstDiff}: expected ${show(check.expected)}, got ${show(check.actual)}.`
+        // Point decimal mismatches at the setting that decides them.
+        if (/\d\.\d/.test(`${check.expected ?? ''} ${check.actual ?? ''}`)) {
+          const rule = tolerance === null ? 'must match exactly' : `may differ by up to ±${tolerance.toExponential()}`
+          detail += ` Decimal answers ${rule}; change this under Settings → Decimal answers.`
+        }
       }
       break
     case 'runtime-error':

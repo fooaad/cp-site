@@ -131,6 +131,10 @@ Done 2026-10-13. Notes:
   ±1e-6 by default, ±1e-9, ±1e-4 or exact), using absolute or relative error like Codeforces:
   |yours − expected| ≤ ε·max(1, |expected|). Whole numbers and words must match exactly. A pass
   that needed the tolerance says so.
+- Settings (2026-10-17): one toolbar button that names what's active ("C++20 · Optimized") opens a
+  panel with C++ version, Optimization (On = -O2 like judges / Off = -O0 for debugging) and
+  Decimal answers, each with a one-line explanation, replacing bare "-O2"/"±1e-6" dropdowns.
+  A wrong answer on decimal lines says which rule applied and where to change it.
 - Memory is the program's final memory size minus the 256 MB stack reservation, so it counts
   globals, heap and the program itself but not stack actually used. Unknown on a time limit.
 
